@@ -29,12 +29,7 @@ def generate_emotion_face():
     # Face outline (Circle in the center)
     face_radius = min(WIDTH, HEIGHT) // 2 - 50  # Ensure it fits within the smaller dimension
     face_center = (WIDTH // 2, HEIGHT // 2)
-    draw.ellipse(
-        [face_center[0] - face_radius, face_center[1] - face_radius,
-         face_center[0] + face_radius, face_center[1] + face_radius],
-        outline="white",
-        width=5
-    )
+    
 
     # Eyes (Circles)
     eye_radius = face_radius // 6
@@ -66,30 +61,6 @@ def generate_emotion_face():
         end=180,
         fill="white",
         width=2
-    )
-
-    # Mouth
-    draw.arc(
-        [face_center[0] - face_radius // 2, face_center[1] + face_radius // 3,
-         face_center[0] + face_radius // 2, face_center[1] + face_radius // 1.5],
-        start=20,
-        end=160,
-        fill="white",
-        width=4
-    )
-    draw.line(
-        [(face_center[0], face_center[1] + face_radius // 3),
-         (face_center[0], face_center[1] + face_radius // 1.5)],
-        fill="white",
-        width=2
-    )
-
-    # Nose
-    draw.line(
-        [(face_center[0], face_center[1] - 20),
-         (face_center[0], face_center[1] + face_radius // 3)],
-        fill="white",
-        width=30
     )
 
     return img
