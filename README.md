@@ -25,4 +25,3 @@ Explore more artworks and ideas on the [null id blog](https://null-id.com). Feel
 ### Acknowledgments
 
 Thank you for exploring the intersection of code and art with me. Let’s celebrate the beauty in complexity and embrace the infinite potential of creativity!
-```
