@@ -1,0 +1,299 @@
+<div id="canvas-container"></div>
+
+<script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const sketch = (p) => {
+      const width = 685;
+      const height = 500;
+      let particles = [];
+      let bridges = [];
+      let currentEmotion = null;
+      let partner1, partner2;
+      
+      const emotions = {
+        frustration: { 
+          color: [255, 165, 0], 
+          label: "Frustration",
+          effect: "Creates distance",
+          force: 0.3
+        },
+        anger: { 
+          color: [255, 0, 0], 
+          label: "Anger",
+          effect: "Breaks connection",
+          force: 0.5
+        },
+        sadness: { 
+          color: [0, 0, 255], 
+          label: "Sadness",
+          effect: "Weakens bonds",
+          force: 0.2
+        },
+        anxiety: { 
+          color: [128, 0, 128], 
+          label: "Anxiety",
+          effect: "Causes withdrawal",
+          force: 0.4
+        },
+        shame: { 
+          color: [139, 0, 0], 
+          label: "Shame",
+          effect: "Self-isolation",
+          force: 0.35
+        }
+      };
+
+      let isHealing = false;
+      let healingComplete = false;
+      let healingOpacity = 255;
+
+      class Partner {
+        constructor(x, y) {
+          this.pos = p.createVector(x, y);
+          this.vel = p.createVector(0, 0);
+          this.acc = p.createVector(0, 0);
+          this.targetPos = p.createVector(x, y);
+          this.size = 30;
+          this.color = [255, 255, 255];
+          this.emotionalState = 1; // 1 = stable, < 1 = affected
+        }
+
+        update() {
+          if (currentEmotion) {
+            // Move away from target based on emotion force
+            this.emotionalState = Math.max(0.2, this.emotionalState - currentEmotion.force * 0.01);
+            let direction = p5.Vector.sub(this.pos, this.targetPos);
+            direction.normalize();
+            direction.mult(currentEmotion.force);
+            this.acc.add(direction);
+          } else {
+            // Return to original position
+            this.emotionalState = Math.min(1, this.emotionalState + 0.01);
+            let direction = p5.Vector.sub(this.targetPos, this.pos);
+            direction.mult(0.05);
+            this.acc.add(direction);
+          }
+
+          this.vel.add(this.acc);
+          this.vel.mult(0.95); // Damping
+          this.pos.add(this.vel);
+          this.acc.mult(0);
+        }
+
+        draw() {
+          p.noStroke();
+          p.fill(...this.color, this.emotionalState * 255);
+          p.circle(this.pos.x, this.pos.y, this.size);
+        }
+      }
+
+      class Bridge {
+        constructor(p1, p2) {
+          this.p1 = p1;
+          this.p2 = p2;
+          this.strength = 1;
+        }
+
+        update() {
+          if (currentEmotion) {
+            this.strength = Math.max(0.1, this.strength - currentEmotion.force * 0.005);
+          } else {
+            this.strength = Math.min(1, this.strength + 0.005);
+          }
+        }
+
+        draw() {
+          p.stroke(255, this.strength * 255);
+          p.strokeWeight(2 * this.strength);
+          this.drawConnection();
+        }
+
+        drawConnection() {
+          const mid = p.createVector(
+            (this.p1.pos.x + this.p2.pos.x) / 2,
+            (this.p1.pos.y + this.p2.pos.y) / 2
+          );
+          
+          p.beginShape();
+          p.noFill();
+          p.vertex(this.p1.pos.x, this.p1.pos.y);
+          
+          // Create a wavy line effect
+          const steps = 10;
+          for (let i = 1; i < steps; i++) {
+            const t = i / steps;
+            const x = p.lerp(this.p1.pos.x, this.p2.pos.x, t);
+            const y = p.lerp(this.p1.pos.y, this.p2.pos.y, t);
+            const wave = Math.sin(t * Math.PI * 2 + p.frameCount * 0.05) * 10;
+            const perpX = -(this.p2.pos.y - this.p1.pos.y);
+            const perpY = (this.p2.pos.x - this.p1.pos.x);
+            const len = Math.sqrt(perpX * perpX + perpY * perpY);
+            p.curveVertex(
+              x + (perpX / len) * wave,
+              y + (perpY / len) * wave
+            );
+          }
+          
+          p.vertex(this.p2.pos.x, this.p2.pos.y);
+          p.endShape();
+        }
+      }
+
+      p.setup = () => {
+        p.createCanvas(width, height);
+        partner1 = new Partner(width * 0.35, height * 0.5);
+        partner2 = new Partner(width * 0.65, height * 0.5);
+        bridges.push(new Bridge(partner1, partner2));
+      };
+
+      p.draw = () => {
+        p.background(30);
+        
+        // Update and draw bridges
+        bridges.forEach(bridge => {
+          bridge.update();
+          if (isHealing) {
+            // Slower, smoother healing
+            bridge.strength = Math.min(1, bridge.strength + 0.0005);
+            if (bridge.strength >= 1) {
+              isHealing = false;
+              healingComplete = true;
+            }
+          }
+          bridge.draw();
+        });
+
+        // Update and draw partners
+        if (isHealing) {
+          // Slower partner movement during healing
+          partner1.pos.lerp(partner1.targetPos, 0.005);
+          partner2.pos.lerp(partner2.targetPos, 0.005);
+          partner1.emotionalState = Math.min(1, partner1.emotionalState + 0.001);
+          partner2.emotionalState = Math.min(1, partner2.emotionalState + 0.001);
+          healingOpacity = 255; // Full opacity while actively healing
+        } else if (healingComplete) {
+          partner1.update();
+          partner2.update();
+          // Slowly fade the healing message
+          healingOpacity = Math.max(100, healingOpacity - 0.5);
+        } else {
+          partner1.update();
+          partner2.update();
+        }
+        partner1.draw();
+        partner2.draw();
+
+        drawEmotionLabels();
+        drawEffectText();
+      };
+
+      const drawEmotionLabels = () => {
+        p.textAlign(p.LEFT, p.CENTER);
+        p.textSize(14);
+        Object.values(emotions).forEach((emotion, index) => {
+          const x = 20;
+          const y = 50 + index * 40;
+          
+          // Draw emotion button
+          p.fill(...emotion.color, currentEmotion === emotion ? 255 : 180);
+          p.rect(x, y - 15, 120, 30, 5);
+          
+          // Draw label
+          p.fill(255);
+          p.text(emotion.label, x + 10, y);
+        });
+
+        // Draw heal button
+        p.fill(0, 255, 100, isHealing ? 255 : 180);
+        p.rect(20, height - 85, 120, 30, 5);
+        p.fill(255);
+        p.text("Heal", 65, height - 70);
+
+        // Draw reset button
+        p.fill(50);
+        p.rect(20, height - 45, 120, 30, 5);
+        p.fill(255);
+        p.text("Reset", 55, height - 30);
+      };
+
+      const drawEffectText = () => {
+        if (currentEmotion) {
+          p.textAlign(p.CENTER, p.CENTER);
+          p.textSize(16);
+          p.fill(255);
+          p.text(currentEmotion.effect, width/2, height - 30);
+          p.textSize(14);
+          p.text("Connection Strength: " + Math.round(bridges[0].strength * 100) + "%", width/2, 30);
+        } else if (isHealing || healingComplete) {
+          p.textAlign(p.CENTER, p.CENTER);
+          p.textSize(16);
+          const healingPhase = bridges[0].strength;
+          let healingMessage;
+          
+          // Different messages based on healing progress
+          if (healingPhase < 0.3) {
+            healingMessage = "Opening up to communication...";
+          } else if (healingPhase < 0.6) {
+            healingMessage = "Building understanding...";
+          } else if (healingPhase < 0.9) {
+            healingMessage = "Strengthening trust...";
+          } else {
+            healingMessage = "Deepening connection...";
+          }
+          
+          // Use healingOpacity for the green color
+          p.fill(0, 255, 100, healingOpacity);
+          p.text(healingMessage, width/2, height - 30);
+          p.fill(255);
+          p.textSize(14);
+          p.text("Connection Strength: " + Math.round(bridges[0].strength * 100) + "%", width/2, 30);
+        }
+      };
+
+      p.mousePressed = () => {
+        const x = p.mouseX;
+        const y = p.mouseY;
+
+        // Check emotion buttons
+        Object.values(emotions).forEach((emotion, index) => {
+          const buttonX = 20;
+          const buttonY = 50 + index * 40;
+          
+          if (x > buttonX && x < buttonX + 120 && 
+              y > buttonY - 15 && y < buttonY + 15) {
+            currentEmotion = emotion;
+            isHealing = false;
+            healingComplete = false;
+            healingOpacity = 255;
+            console.log(`Selected: ${emotion.label}`);
+          }
+        });
+
+        // Check heal button
+        if (x > 20 && x < 140 && y > height - 85 && y < height - 55) {
+          currentEmotion = null;
+          isHealing = true;
+          healingComplete = false;
+          healingOpacity = 255;
+          console.log("Healing started");
+        }
+
+        // Check reset button
+        if (x > 20 && x < 140 && y > height - 45 && y < height - 15) {
+          currentEmotion = null;
+          isHealing = false;
+          healingComplete = false;
+          healingOpacity = 255;
+          partner1.pos = p.createVector(width * 0.35, height * 0.5);
+          partner2.pos = p.createVector(width * 0.65, height * 0.5);
+          partner1.vel.mult(0);
+          partner2.vel.mult(0);
+          bridges.forEach(bridge => bridge.strength = 1);
+        }
+      };
+    };
+
+    new p5(sketch, "canvas-container");
+  });
+</script>
